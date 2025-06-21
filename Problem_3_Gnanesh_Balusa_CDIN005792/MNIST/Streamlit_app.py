@@ -46,8 +46,18 @@ st.markdown("""
 def load_data_and_model():
     """Load the model, test data, and training history"""
     try:
+        # Get the current directory path
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        model_path = os.path.join(current_dir, 'mnist_cnn_model.h5')
+        history_path = os.path.join(current_dir, 'training_history.pkl')
+        
         # Load model
-        model = load_model('mnist_cnn_model.h5')
+        if os.path.exists(model_path):
+            model = load_model(model_path)
+        else:
+            st.error(f"Model file not found at: {model_path}")
+            st.info("Please run 'python train_model.py' to generate the model file.")
+            return None, None, None, None
         
         # Load MNIST test data
         (_, _), (X_test, y_test) = tf.keras.datasets.mnist.load_data()
@@ -56,11 +66,13 @@ def load_data_and_model():
         
         # Load training history if available
         history = None
-        if os.path.exists('training_history.pkl'):
-            with open('training_history.pkl', 'rb') as f:
+        if os.path.exists(history_path):
+            with open(history_path, 'rb') as f:
                 history = pickle.load(f)
         else:
             # Create dummy history data for demonstration
+            st.warning(f"Training history not found at: {history_path}")
+            st.info("Using dummy data for training history. Run 'python train_model.py' for actual training history.")
             history = {
                 'loss': [0.5, 0.3, 0.2, 0.15, 0.12, 0.1, 0.08, 0.07, 0.06, 0.05],
                 'accuracy': [0.85, 0.92, 0.95, 0.96, 0.97, 0.975, 0.98, 0.982, 0.985, 0.987],
@@ -71,6 +83,8 @@ def load_data_and_model():
         return model, X_test, y_test, history
     except Exception as e:
         st.error(f"Error loading data: {str(e)}")
+        st.error(f"Current working directory: {os.getcwd()}")
+        st.error(f"Files in current directory: {os.listdir('.')}")
         return None, None, None, None
 
 def plot_training_metrics(history):
@@ -181,13 +195,13 @@ def create_confusion_matrix(model, X_test, y_test):
 def show_digit_samples(digit, model, X_test, y_test):
     """Generate and display 5 samples of a specific digit"""
     true_labels = np.argmax(y_test, axis=1)
-    
-    # Find digit examples
+      # Find digit examples
     digit_indices = np.where(true_labels == digit)[0]
     if len(digit_indices) == 0:
         st.error(f"No examples of digit {digit} found!")
         return
-      # Get best 5 samples based on model confidence
+    
+    # Get best 5 samples based on model confidence
     digit_images = X_test[digit_indices]
     predictions = model.predict(digit_images, verbose=0)
     confidence_scores = predictions[:, digit]
@@ -196,9 +210,9 @@ def show_digit_samples(digit, model, X_test, y_test):
     
     # Create subplot figure with increased spacing and size
     fig = make_subplots(
-        rows=1, cols=5,
-        subplot_titles=[f'Sample {i+1}<br>Confidence: {confidence_scores[top_5_indices[i]]:.3f}' 
-                       for i in range(5)],        specs=[[{"type": "xy"}] * 5],
+        rows=1, cols=5,        subplot_titles=[f'Sample {i+1}<br>Confidence: {confidence_scores[top_5_indices[i]]:.3f}' 
+                       for i in range(5)],
+        specs=[[{"type": "xy"}] * 5],
         horizontal_spacing=0.01,  # Minimal spacing between subplots for maximum image space
         vertical_spacing=0.1
     )
@@ -209,9 +223,9 @@ def show_digit_samples(digit, model, X_test, y_test):
         fig.add_trace(
             go.Heatmap(
                 z=img,
-                colorscale='gray',
-                showscale=False,
-                hovertemplate='Pixel value: %{z:.3f}<br>Row: %{y}<br>Col: %{x}<extra></extra>',                zmin=0,
+                colorscale='gray',                showscale=False,
+                hovertemplate='Pixel value: %{z:.3f}<br>Row: %{y}<br>Col: %{x}<extra></extra>',
+                zmin=0,
                 zmax=1
             ),
             row=1, col=i+1
