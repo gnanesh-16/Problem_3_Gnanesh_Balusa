@@ -187,20 +187,20 @@ def show_digit_samples(digit, model, X_test, y_test):
     if len(digit_indices) == 0:
         st.error(f"No examples of digit {digit} found!")
         return
-    
-    # Get best 5 samples based on model confidence
+      # Get best 5 samples based on model confidence
     digit_images = X_test[digit_indices]
     predictions = model.predict(digit_images, verbose=0)
     confidence_scores = predictions[:, digit]
     top_5_indices = np.argsort(confidence_scores)[-5:][::-1]
     selected_indices = digit_indices[top_5_indices]
     
-    # Create subplot figure
+    # Create subplot figure with increased spacing and size
     fig = make_subplots(
         rows=1, cols=5,
         subplot_titles=[f'Sample {i+1}<br>Confidence: {confidence_scores[top_5_indices[i]]:.3f}' 
-                       for i in range(5)],
-        specs=[[{"type": "xy"}] * 5]
+                       for i in range(5)],        specs=[[{"type": "xy"}] * 5],
+        horizontal_spacing=0.01,  # Minimal spacing between subplots for maximum image space
+        vertical_spacing=0.1
     )
     
     for i, idx in enumerate(selected_indices):
@@ -211,7 +211,8 @@ def show_digit_samples(digit, model, X_test, y_test):
                 z=img,
                 colorscale='gray',
                 showscale=False,
-                hovertemplate='Pixel value: %{z}<extra></extra>'
+                hovertemplate='Pixel value: %{z:.3f}<br>Row: %{y}<br>Col: %{x}<extra></extra>',                zmin=0,
+                zmax=1
             ),
             row=1, col=i+1
         )
@@ -220,16 +221,33 @@ def show_digit_samples(digit, model, X_test, y_test):
         title=dict(
             text=f'Top 5 Confident Predictions for Digit {digit}',
             x=0.5,
-            font=dict(size=20, color="#2c3e50")
+            font=dict(size=24, color="#2c3e50")
         ),
-        height=300,
-        showlegend=False
+        height=700,  # Increased height for better visibility
+        width=1400,  # Increased width to make images larger
+        showlegend=False,
+        margin=dict(l=20, r=20, t=120, b=40),  # Adjusted margins for better spacing
+        plot_bgcolor='white',
+        paper_bgcolor='white'
     )
     
-    # Remove axis labels and ticks
+    # Remove axis labels and ticks, ensure square aspect ratio
     for i in range(1, 6):
-        fig.update_xaxes(showticklabels=False, showgrid=False, row=1, col=i)
-        fig.update_yaxes(showticklabels=False, showgrid=False, row=1, col=i)
+        fig.update_xaxes(
+            showticklabels=False, 
+            showgrid=False, 
+            zeroline=False,
+            scaleanchor=f"y{i}",  # Make aspect ratio square
+            scaleratio=1,
+            row=1, col=i
+        )
+        fig.update_yaxes(
+            showticklabels=False, 
+            showgrid=False, 
+            zeroline=False,
+            autorange="reversed",  # Flip y-axis to match image orientation
+            row=1, col=i
+        )
     
     return fig
 
@@ -280,36 +298,33 @@ def main():
     st.sidebar.title("Navigation")
     page = st.sidebar.selectbox(
         "Choose a page:",
-        ["🎯 Digit Generator", "📊 Model Metrics & Analytics"]
-    )
+        ["🎯 Digit Generator", "📊 Model Metrics & Analytics"]    )
     
     if page == "🎯 Digit Generator":
         st.header("🎯 Digit Sample Generator")
         st.markdown("Enter a digit (0-9) to see the top 5 most confident predictions from the model:")
         
-        col1, col2 = st.columns([1, 3])
+        # Use full width for better image display
+        digit = st.selectbox(
+            "Select digit:",
+            options=list(range(10)),
+            index=0,
+            help="Choose a digit from 0 to 9"
+        )
         
-        with col1:
-            digit = st.selectbox(
-                "Select digit:",
-                options=list(range(10)),
-                index=0,
-                help="Choose a digit from 0 to 9"
-            )
-            
-            if st.button("Generate Samples", type="primary"):
-                with st.spinner("Generating samples..."):
-                    fig = show_digit_samples(digit, model, X_test, y_test)
-                    st.plotly_chart(fig, use_container_width=True)
+        generate_button = st.button("Generate Samples", type="primary")
         
-        with col2:
-            st.markdown("### How it works:")
-            st.markdown("""
-            1. **Model Confidence**: The system finds all test images of your selected digit
-            2. **Ranking**: Images are ranked by the model's confidence score for that digit
-            3. **Top 5 Selection**: The 5 images with highest confidence are displayed
-            4. **Visualization**: Each sample shows the image and confidence score
-            """)
+        # Display images in full width when button is clicked
+        if generate_button:
+            with st.spinner("Generating samples..."):
+                fig = show_digit_samples(digit, model, X_test, y_test)
+                if fig:
+                    # Use full container width and make it responsive
+                    st.plotly_chart(fig, use_container_width=True, config={
+                        'displayModeBar': True,
+                        'displaylogo': False,
+                        'modeBarButtonsToRemove': ['pan2d', 'lasso2d', 'select2d']
+                    })
     
     elif page == "📊 Model Metrics & Analytics":
         st.header("📊 Model Performance Analytics")
